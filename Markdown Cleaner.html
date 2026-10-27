@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Markdown Cleaner</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F3F5F7;--panel:#FFFFFF;--ink:#18212B;--muted:#5B6773;--line:#D5DBE1;
+  --accent:#1F5FD1;--accent-ink:#FFFFFF;--out:#F8FAFC;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F151B;--panel:#161E26;--ink:#E6EBF0;--muted:#93A0AD;--line:#2B3640;
+    --accent:#6EA2FF;--accent-ink:#0B1220;--out:#1B252F;color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F151B;--panel:#161E26;--ink:#E6EBF0;--muted:#93A0AD;--line:#2B3640;
+  --accent:#6EA2FF;--accent-ink:#0B1220;--out:#1B252F;color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.5 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 28px}
+h1{font-size:1.6rem;line-height:1.2;margin:0 0 4px;font-weight:600;letter-spacing:-.01em}
+.sub{margin:0 0 16px;color:var(--muted);max-width:60ch}
+.opts{
+  display:flex;flex-wrap:wrap;gap:10px 20px;align-items:center;
+  padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:14px;
+}
+.opts label{display:flex;align-items:center;gap:8px;font-size:.92rem}
+.opts select{
+  font:inherit;font-size:.92rem;color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:6px;padding:4px 8px;
+}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.panes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pane{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
+.head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--line);min-height:50px}
+.head h2{margin:0;font-size:.95rem;font-weight:600}
+.btns{display:flex;gap:6px}
+button{
+  font:inherit;font-size:.88rem;font-weight:600;cursor:pointer;
+  padding:7px 12px;border-radius:6px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink);
+}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:focus-visible,textarea:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea{
+  width:100%;height:clamp(260px,56vh,620px);border:0;resize:vertical;padding:14px;
+  background:transparent;color:var(--ink);font-size:.95rem;line-height:1.6;
+}
+#src{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.88rem}
+#out{font-family:"IBM Plex Sans",system-ui,sans-serif;background:var(--out)}
+.foot{padding:7px 14px;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+.note{margin:14px 2px 0;color:var(--muted);font-size:.85rem}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.btns{flex-wrap:wrap;justify-content:flex-end}
+textarea.drop{outline:2px dashed var(--accent);outline-offset:-6px}
+#status{min-height:1.3em}
+@media (max-width:760px){
+  .panes{grid-template-columns:1fr}
+  textarea{height:clamp(220px,38vh,420px)}
+  button{padding:9px 12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>Markdown cleaner</h1><button type="button" id="theme" aria-label="Switch between light and dark theme">Light / dark</button></div>
+  <p class="sub">Paste Markdown on the left and copy clean plain text from the right, ready for any CMS or email portal.</p>
+
+  <div class="opts" role="group" aria-label="Cleaning options">
+    <label><input type="checkbox" id="unwrap" checked> Join hard-wrapped lines</label>
+    <label><input type="checkbox" id="urls"> Keep link URLs</label>
+    <label>Bullets
+      <select id="bullet">
+        <option value="-">Dash (-)</option>
+        <option value="•">Dot (•)</option>
+        <option value="none">None</option>
+      </select>
+    </label>
+    <label>Quotes
+      <select id="quotes">
+        <option value="keep">Leave as is</option>
+        <option value="straight">Straight (" ')</option>
+        <option value="curly">Curly (“ ” ‘ ’)</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="dashes"> Plain dashes and ellipses</label>
+    <label><input type="checkbox" id="emoji"> Remove emoji</label>
+    <label>Headings
+      <select id="heads">
+        <option value="keep">As written</option>
+        <option value="upper">UPPERCASE</option>
+      </select>
+    </label>
+    <label>Paragraphs
+      <select id="spacing">
+        <option value="blank">Blank line between</option>
+        <option value="single">Single line break</option>
+      </select>
+    </label>
+  </div>
+
+  <main class="panes">
+    <section class="pane">
+      <div class="head">
+        <h2><label for="src">Markdown</label></h2>
+        <div class="btns">
+          <button type="button" id="paste">Paste</button>
+          <button type="button" id="open">Open file</button>
+          <input type="file" id="file" accept=".md,.markdown,.txt,text/*" hidden>
+          <button type="button" id="sample">Load sample</button>
+          <button type="button" id="clear">Clear</button>
+        </div>
+      </div>
+      <textarea id="src" spellcheck="false" placeholder="Paste your Markdown here"></textarea>
+      <div class="foot" id="srcStat">0 words</div>
+    </section>
+
+    <section class="pane">
+      <div class="head">
+        <h2><label for="out">Clean text</label></h2>
+        <div class="btns">
+          <button type="button" id="copy" class="primary">Copy clean text</button>
+        </div>
+      </div>
+      <textarea id="out" readonly placeholder="Your clean text appears here"></textarea>
+      <div class="foot" id="outStat">0 words</div>
+    </section>
+  </main>
+
+  <p class="note"><span id="status" role="status" aria-live="polite"></span> Everything runs in your browser. Nothing is uploaded, and your last draft is saved only on this device.</p>
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var src = $('src'), out = $('out');
+  var ids = ['unwrap','urls','bullet','quotes','dashes','emoji','heads','spacing'];
+
+  var SAMPLE = [
+    '# Weekly Newsletter',
+    '',
+    'Here\u2019s the **big news**: we shipped the _new_ editor. Read the [release notes](https://example.com/notes "Notes") for ~~old~~ details.',
+    '',
+    '## What changed',
+    '',
+    '* Faster saves',
+    '* Better `code` blocks',
+    '- [x] Fixed the \u201Csmart quotes\u201D bug',
+    '',
+    '> Writing is thinking.',
+    '',
+    '| Plan | Price |',
+    '| ---- | ----- |',
+    '| Free | $0 |',
+    '| Pro  | $9 |',
+    '',
+    'This paragraph was hard-wrapped by an',
+    'old editor, so it breaks in odd places',
+    'when you paste it into a CMS.',
+    '',
+    '---',
+    '',
+    '```js',
+    'const x = 1;',
+    '```',
+    '',
+    '![Team photo](team.jpg)'
+  ].join('\n');
+
+  function inline(l, o){
+    l = l.replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1');
+    l = l.replace(/\[([^\]]+)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function(m, a, u){ return o.urls ? a + ' (' + u + ')' : a; });
+    l = l.replace(/\[([^\]]+)\]\[[^\]]*\]/g, '$1');
+    l = l.replace(/\[\^[^\]]+\]/g, '');
+    l = l.replace(/<(https?:\/\/[^>]+)>/g, '$1');
+    l = l.replace(/<\/?[a-zA-Z][^>]*>/g, '');
+    l = l.replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+    l = l.replace(/`([^`]+)`/g, '$1');
+    l = l.replace(/(\*\*\*|___)(.+?)\1/g, '$2');
+    l = l.replace(/(\*\*|__)(.+?)\1/g, '$2');
+    l = l.replace(/~~(.+?)~~/g, '$1');
+    l = l.replace(/(^|[^\w*])\*([^*\s](?:[^*]*[^*\s])?)\*(?![\w*])/g, '$1$2');
+    l = l.replace(/(^|\W)_([^_\s](?:[^_]*[^_\s])?)_(?!\w)/g, '$1$2');
+    l = l.replace(/\\([\\`*_{}\[\]()#+\-.!|>~])/g, '$1');
+    return l;
+  }
+
+  function clean(t, o){
+    t = t.replace(/\r\n?/g, '\n').replace(/[\u200B-\u200D\uFEFF]/g, '').replace(/\u00A0/g, ' ');
+    t = t.replace(/^---\n[\s\S]*?\n---\n/, '');
+    var lines = t.split('\n'), res = [], fence = false, i, l, k, m, last;
+
+    for(i = 0; i < lines.length; i++){
+      l = lines[i];
+      if(/^\s*(```|~~~)/.test(l)){ fence = !fence; continue; }
+      if(fence){ res.push({t: l, k: 'code'}); continue; }
+      if(/^\s{0,3}\[[^\]]+\]:\s+\S+/.test(l)) continue;
+      if(/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)){ res.push({t: '', k: 'blank'}); continue; }
+      if(/^\s*=+\s*$/.test(l)) continue;
+      if(l.indexOf('|') > -1 && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l)) continue;
+
+      k = 'text';
+      if(/^\s*$/.test(l)){ res.push({t: '', k: 'blank'}); continue; }
+      if(/^\s*\|.*\|\s*$/.test(l)){
+        l = l.replace(/^\s*\|\s*|\s*\|\s*$/g, '').split(/\s*\|\s*/).join('\t');
+        k = 'table';
+      } else if(/^\s{0,3}#{1,6}\s+/.test(l)){
+        l = l.replace(/^\s{0,3}#{1,6}\s+/, '').replace(/\s+#+\s*$/, '');
+        k = 'head';
+      } else {
+        l = l.replace(/^(\s*>\s?)+/, '');
+        m = l.match(/^(\s*)[-*+]\s+(?:\[[ xX]\]\s+)?(.*)$/);
+        if(m){
+          l = m[1] + (o.bullet === 'none' ? '' : o.bullet + ' ') + m[2];
+          k = 'item';
+        } else if(/^\s*\d+[.)]\s+/.test(l)){
+          k = 'item';
+        }
+      }
+      l = inline(l, o);
+      if(k === 'head' && o.heads === 'upper') l = l.toUpperCase();
+      last = res[res.length - 1];
+      if(o.unwrap && k === 'text' && last && last.k === 'text'){
+        last.t += ' ' + l.trim();
+      } else {
+        res.push({t: l, k: k});
+      }
+    }
+
+    t = res.map(function(x){ return x.t; }).join('\n');
+    t = t.replace(/[ \t]+$/gm, '').replace(/(\S) {2,}/g, '$1 ').replace(/\n{3,}/g, '\n\n').trim();
+
+    if(o.emoji){ try{ t = t.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/[ \t]+$/gm, '').replace(/(\S) {2,}/g, '$1 '); }catch(e){} }
+    if(o.dashes){ t = t.replace(/\s*\u2014\s*/g, ' - ').replace(/\u2013/g, '-').replace(/\u2026/g, '...'); }
+    if(o.quotes !== 'keep'){
+      t = t.replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\u2026/g, '...');
+    }
+    if(o.quotes === 'curly'){
+      t = t.replace(/(^|[\s(\[{\u2014-])"/gm, '$1\u201C').replace(/"/g, '\u201D')
+           .replace(/(^|[\s(\[{\u2014-])'/gm, '$1\u2018').replace(/'/g, '\u2019');
+    }
+    if(o.spacing === 'single') t = t.replace(/\n{2,}/g, '\n');
+    return t;
+  }
+
+  function words(s){ var m = s.trim().match(/\S+/g); return m ? m.length : 0; }
+
+  function opts(){
+    return {
+      unwrap: $('unwrap').checked,
+      urls: $('urls').checked,
+      bullet: $('bullet').value,
+      quotes: $('quotes').value,
+      dashes: $('dashes').checked,
+      emoji: $('emoji').checked,
+      heads: $('heads').value,
+      spacing: $('spacing').value
+    };
+  }
+
+  function render(){
+    var o = opts();
+    out.value = clean(src.value, o);
+    $('srcStat').textContent = words(src.value) + ' words, ' + src.value.length + ' characters';
+    var w = words(out.value);
+    $('outStat').textContent = w + ' words, ' + out.value.length + ' characters, about ' + Math.max(w ? 1 : 0, Math.round(w / 220)) + ' min read';
+    try{ localStorage.setItem('mdclean-draft', src.value); }catch(e){}
+  }
+
+  function save(){
+    try{
+      var o = opts();
+      localStorage.setItem('mdclean-opts', JSON.stringify(o));
+    }catch(e){}
+  }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem('mdclean-opts');
+      if(!raw) return;
+      var o = JSON.parse(raw);
+      if(typeof o.unwrap === 'boolean') $('unwrap').checked = o.unwrap;
+      if(typeof o.urls === 'boolean') $('urls').checked = o.urls;
+      if(o.bullet) $('bullet').value = o.bullet;
+      if(o.quotes) $('quotes').value = o.quotes;
+      if(typeof o.dashes === 'boolean') $('dashes').checked = o.dashes;
+      if(typeof o.emoji === 'boolean') $('emoji').checked = o.emoji;
+      if(o.heads) $('heads').value = o.heads;
+      if(o.spacing) $('spacing').value = o.spacing;
+    }catch(e){}
+  }
+
+  function say(msg){
+    var s = $('status');
+    s.textContent = msg;
+    setTimeout(function(){ if(s.textContent === msg) s.textContent = ''; }, 2500);
+  }
+
+  $('copy').addEventListener('click', function(){
+    if(!out.value){ say('Nothing to copy yet.'); return; }
+    var done = function(){ say('Copied to your clipboard.'); };
+    var fallback = function(){
+      out.focus(); out.select();
+      try{ document.execCommand('copy'); done(); }catch(e){ say('Select the text and copy it manually.'); }
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(out.value).then(done, fallback);
+    } else { fallback(); }
+  });
+  $('sample').addEventListener('click', function(){ src.value = SAMPLE; render(); });
+  $('clear').addEventListener('click', function(){ src.value = ''; render(); src.focus(); });
+  src.addEventListener('input', render);
+  ids.forEach(function(id){
+    $(id).addEventListener('change', function(){ save(); render(); });
+  });
+
+  load();
+  try{ var d = localStorage.getItem('mdclean-draft'); if(d) src.value = d; }catch(e){}
+  try{ var th = localStorage.getItem('mdclean-theme'); if(th) document.documentElement.setAttribute('data-theme', th); }catch(e){}
+
+  function setSrc(text){ src.value = text; render(); }
+
+  $('paste').addEventListener('click', function(){
+    if(navigator.clipboard && navigator.clipboard.readText){
+      navigator.clipboard.readText().then(function(t){ setSrc(t); say('Pasted from your clipboard.'); },
+        function(){ src.focus(); say('Clipboard blocked. Long-press the box and choose Paste.'); });
+    } else { src.focus(); say('Long-press the box and choose Paste.'); }
+  });
+
+  function readFile(f){
+    if(!f) return;
+    var r = new FileReader();
+    r.onload = function(){ setSrc(String(r.result)); say('Opened ' + f.name + '.'); };
+    r.onerror = function(){ say('Couldn’t read that file.'); };
+    r.readAsText(f);
+  }
+  $('open').addEventListener('click', function(){ $('file').click(); });
+  $('file').addEventListener('change', function(){ readFile(this.files[0]); this.value = ''; });
+  ['dragenter','dragover'].forEach(function(ev){
+    src.addEventListener(ev, function(e){ e.preventDefault(); src.classList.add('drop'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    src.addEventListener(ev, function(){ src.classList.remove('drop'); });
+  });
+  src.addEventListener('drop', function(e){
+    if(e.dataTransfer && e.dataTransfer.files.length){ e.preventDefault(); readFile(e.dataTransfer.files[0]); }
+  });
+
+  $('theme').addEventListener('click', function(){
+    var r = document.documentElement, cur = r.getAttribute('data-theme');
+    var dark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark';
+    r.setAttribute('data-theme', next);
+    try{ localStorage.setItem('mdclean-theme', next); }catch(e){}
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
